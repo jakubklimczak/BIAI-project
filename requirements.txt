@@ -1,2 +1,2 @@
 tensorflow
-tensorflow-rocm
+--extra-index-url https://pypi.ngc.nvidia.com

@@ -1,4 +1,10 @@
 import tensorflow as tf
+
+physical_devices = tf.config.list_physical_devices('GPU') 
+print(len(physical_devices))
+print(physical_devices)
+
+
 mnist = tf.keras.datasets.mnist
 
 (x_train, y_train),(x_test, y_test) = mnist.load_data()
@@ -15,5 +21,5 @@ model.compile(optimizer='adam',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
-model.fit(x_train, y_train, epochs=5)
+model.fit(x_train, y_train, epochs=2)
 model.evaluate(x_test, y_test)
