@@ -178,3 +178,5 @@ pyrightconfig.json
 bin/
 include/
 conda-meta/
+content/dataset
+share/

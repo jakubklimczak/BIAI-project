@@ -1,4 +1,3 @@
 {
-  "TestFramework": "Pytest",
-  "Interpreter": "Workspace|Workspace|.venv"
+  "TestFramework": "Pytest"
 }
