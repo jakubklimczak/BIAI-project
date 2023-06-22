@@ -10,8 +10,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 import tensorflow as tf
 import cv2
 import pandas as pd
-from keras.models import Sequential
-from keras.preprocessing.image import ImageDataGenerator
+import keras
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import layers
 from tensorflow.keras import activations
 from tensorflow.keras.optimizers import Adam
@@ -28,13 +29,14 @@ from datetime import datetime
 
 ### for gpu on linux:
 
-aPath = '--xla_gpu_cuda_data_dir=/home/jaklimczak/miniconda3/pkgs/cudatoolkit-11.8.0-h6a678d5_0/lib'
+#aPath = '--xla_gpu_cuda_data_dir=/home/jaklimczak/miniconda3/pkgs/cudatoolkit-11.8.0-h6a678d5_0/lib'
 
-print(aPath)
-os.environ['XLA_FLAGS'] = aPath
+#print(aPath)
+#os.environ['XLA_FLAGS'] = aPath
 
 
 #setting memory growth
+
 
 gpus = tf.config.list_physical_devices('GPU')
 if gpus:
@@ -53,12 +55,14 @@ if gpus:
 
 
 batch_size = 256
-image_height = 200
-image_width = 200
+image_height = 350
+image_width = 350
 
 
 training_location = 'content/dataset/training/'
 all_images = []
+
+labels = []
 
 for folder in os.listdir(training_location):
     label_folder = os.path.join(training_location, folder)
@@ -74,12 +78,19 @@ x_training,x_holdout = train_test_split(dataframe, test_size = 0.10, stratify = 
 x_training,x_testing = train_test_split(x_training, stratify = x_training[['label']])
 
 
-image_width, image_height = 64, 64
-batch_size = 256
+image_width, image_height = 350, 350
+batch_size = 32
 y_col = 'label'
 x_col = 'path'
 number_of_classes = len(dataframe[y_col].unique())
 
+for n in x_testing[y_col].unique():
+    print(n)
+    labels.append(n)
+
+print(labels)
+
+np.savetxt("labels.txt", labels, fmt='%s')
 
 training_datagen = ImageDataGenerator(rescale = 1/255.0)
 
@@ -108,58 +119,63 @@ holdout_generator = holdout_datagen.flow_from_dataframe(
 
 model = Sequential()
 
-model.add(tf.keras.layers.Conv2D(filters = 32, kernel_size = (5,5), padding = 'Same', activation = activations.relu, input_shape = (64,64,3)))
+model.add(tf.keras.layers.Conv2D(filters = 32, kernel_size = (3,3), padding = 'Same', activation = 'relu', input_shape = (image_width, image_height, 3)))
 model.add(tf.keras.layers.MaxPooling2D(pool_size = (2,2), strides = (2,2)))
 model.add(tf.keras.layers.Dropout(0.3))
 
-model.add(tf.keras.layers.Conv2D(filters = 64, kernel_size = (5,5), padding = 'Same', activation = activations.relu, input_shape = (150,150,3)))
+model.add(tf.keras.layers.Conv2D(filters = 64, kernel_size = (3,3), padding = 'Same', activation = 'relu', input_shape = (image_width, image_height, 3)))
 model.add(tf.keras.layers.MaxPooling2D(pool_size = (2,2), strides = (2,2)))
 model.add(tf.keras.layers.Dropout(0.3))
 
-model.add(tf.keras.layers.Conv2D(filters = 64, kernel_size = (5,5), padding = 'Same', activation = activations.relu, input_shape = (150,150,3)))
+model.add(tf.keras.layers.Conv2D(filters = 64, kernel_size = (3,3), padding = 'Same', activation = 'relu', input_shape = (image_width, image_height, 3)))
 model.add(tf.keras.layers.MaxPooling2D(pool_size = (2,2), strides = (2,2)))
 model.add(tf.keras.layers.Dropout(0.3))
 
-model.add(tf.keras.layers.Conv2D(filters = 128, kernel_size = (5,5), padding = 'Same', activation = activations.relu, input_shape = (150,150,3)))
+model.add(tf.keras.layers.Conv2D(filters = 128, kernel_size = (3,3), padding = 'Same', activation = 'relu', input_shape = (image_width, image_height, 3)))
 model.add(tf.keras.layers.MaxPooling2D(pool_size = (2,2), strides = (2,2)))
 
 model.add(tf.keras.layers.Flatten())
 model.add(tf.keras.layers.Dense(256))
-model.add(tf.keras.layers.Activation(activations.relu))
-model.add(tf.keras.layers.Dense(29, activations.softmax))
+model.add(tf.keras.layers.Activation('relu'))
+model.add(tf.keras.layers.Dense(29, 'softmax'))
 
 
 
 #Adam learning_rate default 0.001
 
-model.compile(optimizer = tf.keras.optimizers.Adam(), loss = 'categorical_crossentropy', metrics = ['accuracy'])
+model.compile(optimizer = tf.keras.optimizers.Adam(), loss = 'categorical_crossentropy', metrics = ['accuracy', 'Precision','Recall'])
 model.summary()
 
 
 early_stop = EarlyStopping(monitor='val_loss', patience=5)
 
-batch_size=128
+batch_size=32
 epochs=20
 
-logdir = "logs/fit/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-options = tf.profiler.experimental.ProfilerOptions(host_tracer_level = 3, python_tracer_level = 1, device_tracer_level = 1)
+#logdir = "logs/fit/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+#options = tf.profiler.experimental.ProfilerOptions(host_tracer_level = 3, python_tracer_level = 1, device_tracer_level = 1)
 
-print(tf.config.list_logical_devices('GPU'))
+#print(tf.config.list_logical_devices('GPU'))
 
-tf.profiler.experimental.start(logdir = logdir, options = options)
+#tf.profiler.experimental.start(logdir = logdir, options = options)
 
 history = model.fit(training_generator,
+                    batch_size = batch_size,
                     epochs = epochs,
                     verbose = 1,
                     validation_data = validation_generator,
-                    callbacks = [early_stop])
+                    callbacks = [early_stop]
+                    )
 
+print("Finished training. Saving...")
+
+model.save('model_hands_labels.h5')
 
 #print(history.history.keys())
 
-tf.profiler.experimental.stop()
+#tf.profiler.experimental.stop()
 
-model.save('model.h5')
+
 
 
 
